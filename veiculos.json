@@ -1,0 +1,32 @@
+[
+    {
+        "id": 0,
+        "tipo": "Moto",
+        "capacidade": 122,
+        "disponivel": true
+    },
+    {
+        "id": 1,
+        "tipo": "Moto",
+        "capacidade": 115,
+        "disponivel": true
+    },
+    {
+        "id": 2,
+        "tipo": "Van",
+        "capacidade": 90,
+        "disponivel": true
+    },
+    {
+        "id": 3,
+        "tipo": "Van",
+        "capacidade": 73,
+        "disponivel": true
+    },
+    {
+        "id": 4,
+        "tipo": "Moto",
+        "capacidade": 142,
+        "disponivel": true
+    }
+]
