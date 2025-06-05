@@ -1,0 +1,37 @@
+{
+    "nodos": [
+        {
+            "id": "D1",
+            "tipo": "deposito",
+            "nome": "CD Maceió",
+            "latitude": -9.6395007,
+            "longitude": -35.7302202
+        },
+        {
+            "id": "H1",
+            "tipo": "hub",
+            "nome": "Hub Centro",
+            "latitude": -9.6499735,
+            "longitude": -35.7395198
+        },
+        {
+            "id": "Z1",
+            "tipo": "zona",
+            "nome": "Ponta Verde",
+            "latitude": -9.6600744,
+            "longitude": -35.7499632
+        }
+    ],
+    "rotas": [
+        {
+            "origem": "D1",
+            "destino": "H1",
+            "capacidade": 100
+        },
+        {
+            "origem": "H1",
+            "destino": "Z1",
+            "capacidade": 50
+        }
+    ]
+}
