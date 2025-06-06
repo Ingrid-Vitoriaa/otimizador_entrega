@@ -1,7 +1,10 @@
 from enum import Enum
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
+
 import networkx as nx
+
+from fluxo.network_builder import build_flow_network, get_allocations
 
 # --- Enums ---
 class StatusPedido(Enum):
@@ -227,6 +230,10 @@ def main():
         Veiculo(4, "MOTO", 142, True)
     ]
 
+    # Resolução com fluxo
+    flow_network = build_flow_network(pedidos, veiculos)
+    max_flow = flow_network.multi_max_flow()
+
     # --- Prints para debug ---
     print("--- Clientes ---")
     for c in clientes:
@@ -264,17 +271,15 @@ def main():
     print(f"Soma das demandas dos pedidos: {sum(demandas)}")
     print(f"Zonas dos pedidos: {zonas_pedidos}")
 
-    # --- Resolver VRP ---
-    rotas = criar_modelo_vrp(matriz, demandas, capacidades, num_veiculos, zonas_pedidos, veiculos, max_zonas_por_veiculo=2)
+    flow = build_flow_network(pedidos, veiculos)
+    max_flow = flow.multi_max_flow()
+    print(f"Pode atender {max_flow} unidades de volume")
+    print(f"Demanda total: {sum(p.volume for p in pedidos)}")
+    print(f"Capacidade total: {sum(v.capacidade for v in veiculos)}")
 
-    if rotas:
-        print("\n--- Rotas encontradas ---")
-        for i, rota in enumerate(rotas):
-            pedidos_rota = [f"Pedido {n} ({pedidos[n].cliente.nome}, {pedidos[n].cliente.zona})" for n in rota]
-            print(f"Veículo {i + 1}: {pedidos_rota}")
-    else:
-        print("\nSolver não encontrou solução dentro do tempo limite.")
-        print("Nenhuma solução encontrada.")
-
+    # Mostrar alocações
+    allocations = get_allocations(flow, len(pedidos), len(veiculos))
+    for veic_id, vol in allocations.items():
+        print(f"Veículo {veic_id} transportará {vol} unidades")
 if __name__ == "__main__":
     main()
