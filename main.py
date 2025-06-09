@@ -1,9 +1,12 @@
 from enum import Enum
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
+
 import networkx as nx
 import osmnx as ox
 from grafos.coordenadas_osm import atualizar_coordenadas_no_json
+
+from fluxo.network_builder import build_flow_network, get_allocations
 
 # --- Enums ---
 class StatusPedido(Enum):
@@ -152,15 +155,44 @@ def main():
         Veiculo(2, "Carro grande", 400, True, zonas_permitidas=["Zona 2", "Zona 3", "Zona 4"]),
     ]
 
-    # --- Dados para o VRP ---
+    # --- Resolução com fluxo ---
+    flow_network = build_flow_network(pedidos, veiculos)
+    max_flow = flow_network.multi_max_flow()
+
+    # --- Debug prints ---
+    print("--- Clientes ---")
+    for c in clientes:
+        print(f"ID: {c.id}, Nome: {c.nome}, Zona: {c.zona}")
+
+    print("\n--- Veículos ---")
+    for v in veiculos:
+        print(f"ID: {v.id}, Tipo: {v.tipo}, Capacidade: {v.capacidade}, Disponível: {v.disponivel}, Zonas: {v.zonas_permitidas}")
+
+    print("\n--- Pedidos ---")
+    for p in pedidos:
+        print(f"ID: {p.id}, Cliente: {p.cliente.nome}, Volume: {p.volume}, Prioridade: {p.prioridade}, Status: {p.status.name}")
+
+    # --- Gerar matriz de distâncias reais via OSM ---
+    matriz_distancias = gerar_matriz_distancias_osm(pedidos)
+    print("\n--- Matriz de Distâncias (entre pedidos) ---")
+    for linha in matriz_distancias:
+        print(linha)
+
+    # --- Demandas, capacidades e zonas ---
     demandas = [p.volume for p in pedidos]
     capacidades = [v.capacidade for v in veiculos]
     zonas_pedidos = [p.cliente.zona for p in pedidos]
 
-    # --- Matriz de distâncias ---
-    matriz_distancias = gerar_matriz_distancias_osm(pedidos)
+    print("\n--- Demandas por Pedido ---")
+    for p in pedidos:
+        print(f"Pedido {p.id} para {p.cliente.nome}: Volume {p.volume}")
 
-    # --- Resolver o problema ---
+    # --- Informações do fluxo ---
+    print(f"\nPode atender {max_flow} unidades de volume")
+    print(f"Demanda total: {sum(demandas)}")
+    print(f"Capacidade total: {sum(capacidades)}")
+
+    # --- Resolver o problema de roteirização ---
     rotas = criar_modelo_vrp(matriz_distancias, demandas, capacidades, len(veiculos), zonas_pedidos, veiculos)
 
     # --- Exibir solução ---
@@ -169,6 +201,11 @@ def main():
             print(f"Veículo {v} ({veiculos[v].tipo}): Rota = {rota}")
     else:
         print("Não foi possível encontrar uma solução.")
+
+    # --- Mostrar alocações pelo fluxo ---
+    allocations = get_allocations(flow_network, len(pedidos), len(veiculos))
+    for veic_id, vol in allocations.items():
+        print(f"Veículo {veic_id} transportará {vol} unidades")
 
 if __name__ == "__main__":
     # atualizar_coordenadas_no_json("clientes.json")  # opcional
