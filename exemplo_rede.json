@@ -1,37 +1,61 @@
 {
-    "nodos": [
-        {
-            "id": "D1",
-            "tipo": "deposito",
-            "nome": "CD Maceió",
-            "latitude": -9.6395007,
-            "longitude": -35.7302202
-        },
-        {
-            "id": "H1",
-            "tipo": "hub",
-            "nome": "Hub Centro",
-            "latitude": -9.6499735,
-            "longitude": -35.7395198
-        },
-        {
-            "id": "Z1",
-            "tipo": "zona",
-            "nome": "Ponta Verde",
-            "latitude": -9.6600744,
-            "longitude": -35.7499632
-        }
-    ],
-    "rotas": [
-        {
-            "origem": "D1",
-            "destino": "H1",
-            "capacidade": 100
-        },
-        {
-            "origem": "H1",
-            "destino": "Z1",
-            "capacidade": 50
-        }
-    ]
+  "nodos": [
+    {
+      "id": "D1",
+      "tipo": "deposito",
+      "nome": "CD Maceió",
+      "latitude": -9.6395007,
+      "longitude": -35.7302202
+    },
+    {
+      "id": "H1",
+      "tipo": "hub",
+      "nome": "Hub Centro",
+      "latitude": -9.6499735,
+      "longitude": -35.7395198
+    },
+    {
+      "id": "Z2",
+      "tipo": "zona",
+      "nome": "Zona 2",
+      "latitude": -9.655000,
+      "longitude": -35.740000
+    },
+    {
+      "id": "Z4",
+      "tipo": "zona",
+      "nome": "Zona 4",
+      "latitude": -9.665000,
+      "longitude": -35.745000
+    },
+    {
+      "id": "Z5",
+      "tipo": "zona",
+      "nome": "Zona 5",
+      "latitude": -9.670000,
+      "longitude": -35.735000
+    }
+  ],
+  "rotas": [
+    {
+      "origem": "D1",
+      "destino": "H1",
+      "capacidade": 999
+    },
+    {
+      "origem": "H1",
+      "destino": "Z2",
+      "capacidade": 999
+    },
+    {
+      "origem": "H1",
+      "destino": "Z4",
+      "capacidade": 999
+    },
+    {
+      "origem": "H1",
+      "destino": "Z5",
+      "capacidade": 999
+    }
+  ]
 }

@@ -1,5 +1,17 @@
 import pytest
+import networkx as nx
 from main import Pedido, Veiculo, Cliente, StatusPedido, gerar_matriz_distancias, criar_modelo_vrp
+
+# Função auxiliar para criar grafo dummy para os testes
+def criar_grafo_dummy(pedidos):
+    G = nx.Graph()
+    for pedido in pedidos:
+        G.add_node(pedido.id)
+    # Adiciona arestas entre todos os nós com peso 1 (distância constante)
+    for i in range(len(pedidos)):
+        for j in range(i + 1, len(pedidos)):
+            G.add_edge(pedidos[i].id, pedidos[j].id, weight=1)
+    return G
 
 def test_pedido_volume_zero():
     cliente = Cliente(0, "Teste", "Zona 1")
@@ -33,8 +45,10 @@ def test_solver_com_muitos_pedidos_poucos_veiculos():
     pedidos = [Pedido(i, cliente, 10, 1) for i in range(20)]
     capacidades = [50]  # 1 veículo com capacidade 50
     demandas = [p.volume for p in pedidos]
-    matriz = gerar_matriz_distancias(pedidos)
-    rotas = criar_modelo_vrp(matriz, demandas, capacidades, 1)
+    grafo = criar_grafo_dummy(pedidos)
+    nodos = [p.id for p in pedidos]
+    matriz = gerar_matriz_distancias(grafo, nodos)
+    rotas = criar_modelo_vrp(matriz, demandas, capacidades, 1, deposito=0)
     assert rotas is None or isinstance(rotas, list)
 
 def test_solver_com_volume_total_maior_que_capacidade():
@@ -42,8 +56,10 @@ def test_solver_com_volume_total_maior_que_capacidade():
     pedidos = [Pedido(i, cliente, 60, 1) for i in range(3)]  # total 180
     capacidades = [100, 50]  # total 150, menor que demanda total
     demandas = [p.volume for p in pedidos]
-    matriz = gerar_matriz_distancias(pedidos)
-    rotas = criar_modelo_vrp(matriz, demandas, capacidades, 2)
+    grafo = criar_grafo_dummy(pedidos)
+    nodos = [p.id for p in pedidos]
+    matriz = gerar_matriz_distancias(grafo, nodos)
+    rotas = criar_modelo_vrp(matriz, demandas, capacidades, 2, deposito=0)
     assert rotas is None or isinstance(rotas, list)
 
 def test_cliente_com_zona_valida():

@@ -15,7 +15,10 @@ def gerar_clientes(qtd):
 
 def gerar_veiculos(qtd):
     tipos = list(TipoVeiculo)
-    return [Veiculo(i, random.choice(tipos), random.randint(50, 200)) for i in range(qtd)]
+    return [
+        Veiculo(i, random.choice(tipos), random.randint(50, 200), disponivel=True)
+        for i in range(qtd)
+    ]
 
 def gerar_pedidos(clientes, qtd):
     return [

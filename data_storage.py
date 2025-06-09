@@ -4,6 +4,22 @@ from models.veiculo import Veiculo
 from models.pedido import Pedido
 from models.enums import TipoVeiculo, StatusPedido
 
+def carregar_clientes_de_json(caminho="clientes.json"):
+    with open(caminho, "r") as f:
+        dados = json.load(f)
+        clientes = []
+        for c in dados:
+            cliente = Cliente(
+                id=c["id"],
+                nome=c["nome"],
+                zona=c["zona"],
+                latitude=c.get("latitude"),
+                longitude=c.get("longitude")
+            )
+            clientes.append(cliente)
+        return clientes
+
+
 def salvar_clientes(clientes, caminho="clientes.json"):
     with open(caminho, "w") as f:
         json.dump([cliente.__dict__ for cliente in clientes], f, indent=4)
@@ -31,11 +47,13 @@ def carregar_veiculos(caminho="veiculos.json"):
         return [
             Veiculo(
                 v["id"],
-                TipoVeiculo(v["tipo"]),  # converte string de volta para Enum
-                v["capacidade"]
+                TipoVeiculo[v["tipo"]],  # Corrige para usar a chave do enum (string) no acesso
+                v["capacidade"],
+                v.get("disponivel", True)  # Usa True como padrão se não existir a chave
             )
             for v in dados
         ]
+
 
 def salvar_pedidos(pedidos, caminho="pedidos.json"):
     with open(caminho, "w") as f:
