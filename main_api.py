@@ -1,9 +1,10 @@
-# main_api.py
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from enum import Enum as PyEnum
+# Import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # Importando suas dependências existentes
 from ortools.constraint_solver import routing_enums_pb2
@@ -14,47 +15,16 @@ import osmnx as ox
 # Importar o módulo json para ler arquivos JSON
 import json
 
-#  Importando suas classes originais e enums da pasta 'models' 
+# Importando suas classes originais e enums da pasta 'models'
 from models.enums import StatusPedido as OriginalStatusPedido, TipoVeiculo as OriginalTipoVeiculo
 from models.cliente import Cliente as OriginalCliente
 from models.pedido import Pedido as OriginalPedido
 from models.veiculo import Veiculo as OriginalVeiculo
 
 
-#  Placeholder para módulos 'fluxo' 
-# VOCÊ DEVE SUBSTITUIR ISSO PELAS SUAS IMPLEMENTAÇÕES REAIS DE:
-# from fluxo.network_builder import build_flow_network, get_allocations
-class FlowNetwork:
-    def __init__(self, pedidos, veiculos):
-        self.pedidos = pedidos
-        self.veiculos = veiculos
-        self._max_flow = 0
-        self._allocations = {}
+from fluxo.network_builder import build_flow_network, get_allocations
 
-    def multi_max_flow(self):
-        total_demand = sum(p.volume for p in self.pedidos)
-        total_capacity = sum(v.capacidade for v in self.veiculos)
-        self._max_flow = min(total_demand, total_capacity) if total_demand > 0 else 0
-        return self._max_flow
-
-def build_flow_network(pedidos: List[OriginalPedido], veiculos: List[OriginalVeiculo]):
-    return FlowNetwork(pedidos, veiculos)
-
-def get_allocations(flow_network: FlowNetwork, num_pedidos: int, num_veiculos: int) -> Dict[int, int]:
-    allocations = {}
-    remaining_demand = sum(p.volume for p in flow_network.pedidos)
-    
-    for v in flow_network.veiculos:
-        if remaining_demand > 0:
-            allocated_for_vehicle = min(v.capacidade, remaining_demand)
-            allocations[v.id] = allocated_for_vehicle
-            remaining_demand -= allocated_for_vehicle
-        else:
-            allocations[v.id] = 0
-    return allocations
-#  Fim dos placeholders 
-
-#  Pydantic Models para API (refletindo suas classes atualizadas) 
+# Pydantic Models para API (refletindo suas classes atualizadas)
 class StatusPedidoAPI(PyEnum):
     PENDENTE = "PENDENTE"
     ENTREGUE = "ENTREGUE"
@@ -141,7 +111,7 @@ class OptimizationResponse(BaseModel):
     total_demand: Optional[float] = None
     total_capacity: Optional[float] = None
 
-#  Funções do seu código original (adaptadas para API) 
+# Funções do seu código original (adaptadas para API)
 
 def gerar_matriz_distancias_osm(pedidos_originais: List[OriginalPedido], clientes_map_pydantic: Dict[int, ClienteModel]):
     print("📍 Baixando rede de ruas de Maceió via OSMnx para cálculo de distâncias reais...")
@@ -179,7 +149,7 @@ def gerar_matriz_distancias_osm(pedidos_originais: List[OriginalPedido], cliente
                     matriz[i][j] = int(dist) # Distância em metros
                 except nx.NetworkXNoPath:
                     # Se não houver caminho, defina uma distância muito alta
-                    matriz[i][j] = 999999999 
+                    matriz[i][j] = 999999999
                 except Exception as path_error:
                     raise HTTPException(status_code=500, detail=f"Erro ao calcular caminho entre cliente {pedidos_originais[i].cliente.nome} e {pedidos_originais[j].cliente.nome}: {path_error}")
     print("✅ Matriz de distâncias reais gerada.")
@@ -225,7 +195,7 @@ def criar_modelo_vrp(matriz_distancias, demandas, capacidades, num_veiculos, dep
             index = routing.Start(vehicle_id)
             route_indices_for_vehicle = []
             total_distance_for_vehicle = 0
-            
+
             while not routing.IsEnd(index):
                 node_index = manager.IndexToNode(index)
                 route_indices_for_vehicle.append(node_index)
@@ -233,7 +203,7 @@ def criar_modelo_vrp(matriz_distancias, demandas, capacidades, num_veiculos, dep
                 previous_index = index
                 index = solution.Value(routing.NextVar(index))
                 total_distance_for_vehicle += routing.GetArcCostForVehicle(previous_index, index, vehicle_id)
-            
+
             # Adicionar o último nó (depot)
             final_node_index = manager.IndexToNode(index)
             route_indices_for_vehicle.append(final_node_index)
@@ -248,12 +218,26 @@ def criar_modelo_vrp(matriz_distancias, demandas, capacidades, num_veiculos, dep
         return None, None
 
 
-#  Inicialização da Aplicação FastAPI 
+# Inicialização da Aplicação FastAPI
 app = FastAPI(
     title="Otimizador de Rotas de Entrega",
     description="API para otimizar rotas de entrega usando OR-Tools VRP e OSMnx para distâncias reais em Maceió.",
-    version="1.0.0"
+    version="1.1.0"
 )
+
+# Adicionar o middleware CORS
+# ATENÇÃO: Usar ["*"] (qualquer origem) é um risco de segurança em produção.
+# Use isso apenas para testes ou se você realmente entende os riscos.
+origins = ["*"] # Permitir acesso de qualquer origem
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc.)
+    allow_headers=["*"],  # Permite todos os cabeçalhos
+)
+
 
 from fastapi.responses import RedirectResponse
 
@@ -277,11 +261,11 @@ async def get_clientes_from_json():
     try:
         with open("clientes.json", "r", encoding="utf-8") as f:
             clientes_data = json.load(f)
-        
+
         # Validar os dados lidos do JSON usando o Pydantic ClienteModel
         # Isso garante que a resposta esteja no formato correto e que os dados sejam válidos
         validated_clientes = [ClienteModel(**cliente) for cliente in clientes_data]
-        
+
         return validated_clientes
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Arquivo clientes.json não encontrado.")
@@ -304,7 +288,7 @@ async def get_pedidos_from_json():
     try:
         with open("pedidos.json", "r", encoding="utf-8") as f:
             pedidos_data_raw = json.load(f)
-        
+
         # Converter os dados do JSON bruto para o formato esperado por PedidoModel
         validated_pedidos = []
         for pedido_item in pedidos_data_raw:
@@ -312,16 +296,16 @@ async def get_pedidos_from_json():
             cliente_id_from_json = pedido_item.get('cliente', {}).get('id')
             if cliente_id_from_json is None:
                 raise ValueError(f"Pedido com ID {pedido_item.get('id')} não possui um 'cliente.id' válido.")
-            
+
             # Remove a chave 'cliente' para evitar que o Pydantic a tente validar
             # e adiciona 'cliente_id' no nível superior
             pedido_clean_data = {
                 k: v for k, v in pedido_item.items() if k != 'cliente'
             }
             pedido_clean_data['cliente_id'] = cliente_id_from_json
-            
+
             validated_pedidos.append(PedidoModel(**pedido_clean_data))
-            
+
         return validated_pedidos
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Arquivo pedidos.json não encontrado.")
@@ -384,7 +368,7 @@ async def optimize_routes(request: OptimizationRequest):
             client_data = clientes_map_pydantic.get(p_model.cliente_id)
             if not client_data:
                 raise HTTPException(status_code=400, detail=f"Cliente com ID {p_model.cliente_id} para Pedido {p_model.id} não encontrado.")
-            
+
             # Reconstituir um objeto Cliente para o Pedido, usando os dados do Pydantic Model
             cliente_para_pedido = OriginalCliente(
                 id=client_data.id,
@@ -403,7 +387,7 @@ async def optimize_routes(request: OptimizationRequest):
                     status=OriginalStatusPedido[p_model.status.name] # Converte de StatusPedidoAPI para OriginalStatusPedido
                 )
             )
-        
+
         original_veiculos: List[OriginalVeiculo] = []
         for v_model in request.veiculos:
             original_veiculos.append(
@@ -416,19 +400,19 @@ async def optimize_routes(request: OptimizationRequest):
                 )
             )
 
-        #  Cálculo de Fluxo 
+        # Cálculo de Fluxo
         flow_network = build_flow_network(original_pedidos, original_veiculos)
         max_flow = flow_network.multi_max_flow()
 
-        #  Geração da Matriz de Distâncias 
+        # Geração da Matriz de Distâncias
         matriz_distancias, G, nodos_osm = gerar_matriz_distancias_osm(original_pedidos, clientes_map_pydantic)
 
-        #  Preparar entradas para o VRP 
+        # Preparar entradas para o VRP
         demandas = [p.volume for p in original_pedidos]
         capacidades = [v.capacidade for v in original_veiculos]
         num_veiculos = len(request.veiculos)
 
-        #  Resolver o Problema de Roteirização (VRP) 
+        # Resolver o Problema de Roteirização (VRP)
         # Assume que o depósito é o pedido de índice 0 na lista de pedidos
         vrp_solution_data, solution_obj = criar_modelo_vrp(matriz_distancias, demandas, capacidades, num_veiculos, deposito=0)
 
@@ -447,7 +431,7 @@ async def optimize_routes(request: OptimizationRequest):
                     if idx < len(original_pedidos):
                         pedido_obj = original_pedidos[idx]
                         client_obj_pydantic = clientes_map_pydantic.get(pedido_obj.cliente.id)
-                        
+
                         if client_obj_pydantic:
                             # Se o nó é o depósito (assumido como o primeiro pedido), o volume na rota é 0.
                             # O volume real do pedido só é considerado para entregas.
@@ -480,9 +464,9 @@ async def optimize_routes(request: OptimizationRequest):
                     )
                 )
 
-        #  Alocações de Fluxo 
+        # Alocações de Fluxo
         allocations = get_allocations(flow_network, len(original_pedidos), len(original_veiculos))
-        
+
         return OptimizationResponse(
             message="Otimização concluída com sucesso!",
             routes=routes_response if vrp_solution_data else [],
