@@ -22,38 +22,7 @@ from models.pedido import Pedido as OriginalPedido
 from models.veiculo import Veiculo as OriginalVeiculo
 
 
-# Placeholder para módulos 'fluxo'
-# VOCÊ DEVE SUBSTITUIR ISSO PELAS SUAS IMPLEMENTAÇÕES REAIS DE:
-# from fluxo.network_builder import build_flow_network, get_allocations
-class FlowNetwork:
-    def __init__(self, pedidos, veiculos):
-        self.pedidos = pedidos
-        self.veiculos = veiculos
-        self._max_flow = 0
-        self._allocations = {}
-
-    def multi_max_flow(self):
-        total_demand = sum(p.volume for p in self.pedidos)
-        total_capacity = sum(v.capacidade for v in self.veiculos)
-        self._max_flow = min(total_demand, total_capacity) if total_demand > 0 else 0
-        return self._max_flow
-
-def build_flow_network(pedidos: List[OriginalPedido], veiculos: List[OriginalVeiculo]):
-    return FlowNetwork(pedidos, veiculos)
-
-def get_allocations(flow_network: FlowNetwork, num_pedidos: int, num_veiculos: int) -> Dict[int, int]:
-    allocations = {}
-    remaining_demand = sum(p.volume for p in flow_network.pedidos)
-
-    for v in flow_network.veiculos:
-        if remaining_demand > 0:
-            allocated_for_vehicle = min(v.capacidade, remaining_demand)
-            allocations[v.id] = allocated_for_vehicle
-            remaining_demand -= allocated_for_vehicle
-        else:
-            allocations[v.id] = 0
-    return allocations
-# Fim dos placeholders
+from fluxo.network_builder import build_flow_network, get_allocations
 
 # Pydantic Models para API (refletindo suas classes atualizadas)
 class StatusPedidoAPI(PyEnum):
@@ -253,7 +222,7 @@ def criar_modelo_vrp(matriz_distancias, demandas, capacidades, num_veiculos, dep
 app = FastAPI(
     title="Otimizador de Rotas de Entrega",
     description="API para otimizar rotas de entrega usando OR-Tools VRP e OSMnx para distâncias reais em Maceió.",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # Adicionar o middleware CORS
