@@ -1,17 +1,16 @@
 from enum import Enum
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
-
 import networkx as nx
 
+from simulador.simulador import simular_bloqueio_rotas, simular_aumento_demanda, criar_modelo_vrp
+from simulador.relatorio import gerar_relatorio
 from fluxo.network_builder import build_flow_network, get_allocations
 
-# --- Enums ---
 class StatusPedido(Enum):
     PENDENTE = 1
     ENTREGUE = 2
 
-# --- Classes ---
 class Cliente:
     def __init__(self, id, nome, zona):
         if not zona.startswith("Zona ") or not zona.split()[-1].isdigit():
@@ -24,8 +23,6 @@ class Pedido:
     def __init__(self, id, cliente, volume, prioridade, status=StatusPedido.PENDENTE):
         if volume < 0:
             raise ValueError("Volume não pode ser negativo")
-        if not isinstance(status, StatusPedido):
-            raise ValueError("Status inválido")
         self.id = id
         self.cliente = cliente
         self.volume = volume
@@ -40,17 +37,9 @@ class Veiculo:
         self.tipo = tipo
         self.capacidade = capacidade
         self.disponivel = disponivel
-        # Zonas onde o veículo pode operar (ex: ["Zona 1", "Zona 2"])
         self.zonas_permitidas = zonas_permitidas if zonas_permitidas else []
 
-# --- Funções ---
-
 def gerar_matriz_distancias(pedidos, penalidade_zona=10):
-    """
-    Gera matriz de distâncias com penalidade para atravessar zonas distantes.
-    Penalidade é adicionada à distância base (diferença entre zonas + 1)
-    multiplicada pela distância entre as zonas.
-    """
     G = nx.Graph()
     n = len(pedidos)
     for i in range(n):
@@ -58,9 +47,7 @@ def gerar_matriz_distancias(pedidos, penalidade_zona=10):
             if i != j:
                 zona_i = int(pedidos[i].cliente.zona.split()[-1])
                 zona_j = int(pedidos[j].cliente.zona.split()[-1])
-                # Distância base entre zonas
                 base_distancia = abs(zona_i - zona_j) + 1
-                # Penalidade extra para atravessar zonas diferentes
                 penalidade = penalidade_zona * abs(zona_i - zona_j) if zona_i != zona_j else 0
                 distancia = base_distancia + penalidade
                 G.add_edge(i, j, weight=distancia)
@@ -76,119 +63,7 @@ def gerar_matriz_distancias(pedidos, penalidade_zona=10):
         matriz.append(linha)
     return matriz
 
-def criar_modelo_vrp(matriz_distancias, demandas, capacidades, num_veiculos, zonas_pedidos, veiculos, deposito=0, max_zonas_por_veiculo=2):
-    data = {
-        'distance_matrix': matriz_distancias,
-        'demands': demandas,
-        'vehicle_capacities': capacidades,
-        'num_vehicles': num_veiculos,
-        'depot': deposito
-    }
-
-    manager = pywrapcp.RoutingIndexManager(len(data['distance_matrix']),
-                                           data['num_vehicles'], data['depot'])
-
-    routing = pywrapcp.RoutingModel(manager)
-
-    # Distância
-    def distancia_callback(from_index, to_index):
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        return data['distance_matrix'][from_node][to_node]
-
-    transit_callback_index = routing.RegisterTransitCallback(distancia_callback)
-    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-
-    # Demandas
-    def demanda_callback(from_index):
-        from_node = manager.IndexToNode(from_index)
-        return data['demands'][from_node]
-
-    demanda_callback_index = routing.RegisterUnaryTransitCallback(demanda_callback)
-    routing.AddDimensionWithVehicleCapacity(
-        demanda_callback_index,
-        0,
-        data['vehicle_capacities'],
-        True,
-        'Capacity')
-
-    # Limitar número máximo de entregas para 10 pedidos por veículo
-    def entrega_callback(from_index):
-        return 1
-
-    entrega_callback_index = routing.RegisterUnaryTransitCallback(entrega_callback)
-    routing.AddDimension(
-        entrega_callback_index,
-        0,
-        10,
-        True,
-        'NumDeliveries')
-
-    # Dimensão para contar zonas distintas visitadas
-    # Atribuir para cada nó o índice da zona como "custo"
-    zonas_indices = {zona: idx for idx, zona in enumerate(sorted(set(zonas_pedidos)))}
-
-    def zona_callback(from_index):
-        from_node = manager.IndexToNode(from_index)
-        zona = zonas_pedidos[from_node]
-        return zonas_indices[zona]
-
-    zona_callback_index = routing.RegisterUnaryTransitCallback(zona_callback)
-
-    routing.AddDimension(
-        zona_callback_index,
-        0,  # sem tolerância
-        max(zonas_indices.values()),  # máximo índice de zona
-        True,
-        'ZonaDimension')
-
-    zona_dimension = routing.GetDimensionOrDie('ZonaDimension')
-
-    # Limitar zonas visitadas por veículo (simplificação: não permite mudar mais que max_zonas_por_veiculo vezes)
-    for vehicle_id in range(num_veiculos):
-        # Para restringir zonas visitadas, uma abordagem é limitar o valor da dimensão,
-        # mas como a dimensão soma indices, precisamos controlar essa lógica com callbacks
-        # Alternativa: penalizar trocar de zona várias vezes (mais complexo)
-        # Aqui, vamos implementar apenas a penalização ao cruzar zonas fora do permitido
-        if veiculos[vehicle_id].zonas_permitidas:
-            allowed_zonas_indices = [zonas_indices[z] for z in veiculos[vehicle_id].zonas_permitidas if z in zonas_indices]
-
-            # Criar uma callback para verificar se o nó está em zona permitida
-            def zona_veiculo_callback(from_index, v_id=vehicle_id):
-                from_node = manager.IndexToNode(from_index)
-                zona = zonas_pedidos[from_node]
-                if zonas_indices[zona] in allowed_zonas_indices:
-                    return 0  # custo zero para zonas permitidas
-                else:
-                    return 1000000  # penalidade alta para zona proibida
-
-            callback_index = routing.RegisterUnaryTransitCallback(zona_veiculo_callback)
-            routing.SetFixedCostOfVehicle(0, vehicle_id)
-            routing.AddDisjunction([manager.NodeToIndex(i) for i in range(len(zonas_pedidos))], 0)
-            routing.SetArcCostEvaluatorOfVehicle(callback_index, vehicle_id)
-
-    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-    search_parameters.time_limit.seconds = 60
-    search_parameters.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
-
-    solution = routing.SolveWithParameters(search_parameters)
-
-    if solution:
-        rotas = []
-        for vehicle_id in range(num_veiculos):
-            index = routing.Start(vehicle_id)
-            rota = []
-            while not routing.IsEnd(index):
-                node_index = manager.IndexToNode(index)
-                rota.append(node_index)
-                index = solution.Value(routing.NextVar(index))
-            rotas.append(rota)
-        return rotas
-    else:
-        return None
-
 def main():
-    # --- Clientes ---
     clientes = [
         Cliente(0, "Brian Evans", "Zona 4"),
         Cliente(1, "Christine Adams", "Zona 2"),
@@ -202,7 +77,6 @@ def main():
         Cliente(9, "Mrs. Angela Spears", "Zona 3")
     ]
 
-    # --- Pedidos ---
     pedidos = [
         Pedido(0, clientes[3], 85, 5),
         Pedido(1, clientes[6], 84, 3),
@@ -221,7 +95,6 @@ def main():
         Pedido(14, clientes[5], 27, 5)
     ]
 
-    # --- Veículos ---
     veiculos = [
         Veiculo(0, "MOTO", 122, True, zonas_permitidas=["Zona 2", "Zona 3"]),
         Veiculo(1, "MOTO", 115, True, zonas_permitidas=["Zona 4", "Zona 5"]),
@@ -230,56 +103,53 @@ def main():
         Veiculo(4, "MOTO", 142, True)
     ]
 
-    # Resolução com fluxo
-    flow_network = build_flow_network(pedidos, veiculos)
-    max_flow = flow_network.multi_max_flow()
-
-    # --- Prints para debug ---
-    print("--- Clientes ---")
-    for c in clientes:
-        print(f"ID: {c.id}, Nome: {c.nome}, Zona: {c.zona}")
-    print("\n--- Veículos ---")
-    for v in veiculos:
-        print(f"ID: {v.id}, Tipo: {v.tipo}, Capacidade: {v.capacidade}, Disponível: {v.disponivel}, Zonas: {v.zonas_permitidas}")
-    print("\n--- Pedidos ---")
-    for p in pedidos:
-        print(f"ID: {p.id}, Cliente: {p.cliente.nome}, Volume: {p.volume}, Prioridade: {p.prioridade}, Status: {p.status.name}")
-
-    # --- Gerar matriz de distâncias ---
     matriz = gerar_matriz_distancias(pedidos)
-    print("\n--- Matriz de Distâncias (entre pedidos) ---")
-    for linha in matriz:
-        print(linha)
 
-    # --- Demandas por pedido ---
-    demandas = [p.volume for p in pedidos]
-    print("\n--- Demandas por Pedido ---")
-    for p in pedidos:
-        print(f"Pedido {p.id} para {p.cliente.nome}: Volume {p.volume}")
+    # Simulação de bloqueio de rotas
+    rotas_bloqueadas = [(1, 3), (3, 1)]
+    matriz_simulada = simular_bloqueio_rotas(matriz, rotas_bloqueadas)
 
-    # --- Dados para o VRP ---
+    # Simulação de aumento de demanda (ex: Zona 2 aumento 20%)
+    aumento_por_zona = {"Zona 2": 1.2}
+    demandas_simuladas = simular_aumento_demanda(pedidos, aumento_por_zona)
+
     capacidades = [v.capacidade for v in veiculos]
     num_veiculos = len(veiculos)
     zonas_pedidos = [p.cliente.zona for p in pedidos]
 
-    print("\n--- Dados do VRP ---")
-    print(f"Número de pedidos (nós): {len(pedidos)}")
-    print(f"Demandas: {demandas}")
-    print(f"Capacidades dos veículos: {capacidades}")
-    print(f"Número de veículos: {num_veiculos}")
-    print(f"Capacidade total dos veículos: {sum(capacidades)}")
-    print(f"Soma das demandas dos pedidos: {sum(demandas)}")
-    print(f"Zonas dos pedidos: {zonas_pedidos}")
+    total_demanda = sum(demandas_simuladas)
+    total_capacidade = sum(capacidades)
+    print(f"\n🔍 Total de demanda simulada: {total_demanda}")
+    print(f"🚚 Capacidade total dos veículos: {total_capacidade}\n")
 
-    flow = build_flow_network(pedidos, veiculos)
-    max_flow = flow.multi_max_flow()
-    print(f"Pode atender {max_flow} unidades de volume")
-    print(f"Demanda total: {sum(p.volume for p in pedidos)}")
-    print(f"Capacidade total: {sum(v.capacidade for v in veiculos)}")
+    print("📦 Zonas dos pedidos:")
+    for i, p in enumerate(pedidos):
+        print(f"Pedido {p.id}: Zona {p.cliente.zona}, Demanda = {demandas_simuladas[i]}, Prioridade = {p.prioridade}")
 
-    # Mostrar alocações
-    allocations = get_allocations(flow, len(pedidos), len(veiculos))
-    for veic_id, vol in allocations.items():
-        print(f"Veículo {veic_id} transportará {vol} unidades")
+    print("\n🚗 Zonas permitidas por veículo:")
+    for v in veiculos:
+        zonas = v.zonas_permitidas if v.zonas_permitidas else "Todas"
+        print(f"Veículo {v.id} ({v.tipo}) → Zonas: {zonas}, Capacidade: {v.capacidade}")
+
+    # Chama VRP com prioridade no filtro de zonas (não altera prioridade no modelo, mas já temos a informação)
+    rotas = criar_modelo_vrp(matriz_simulada, demandas_simuladas, capacidades, num_veiculos, zonas_pedidos, veiculos)
+
+    if rotas is None:
+        print("\n❌ Não foi possível encontrar uma solução para o VRP.")
+        # Quando não há rotas, passamos None nas alocações
+        gerar_relatorio(pedidos, veiculos, [], demandas_simuladas)
+        return
+    else:
+        print("\n--- Rotas Otimizadas ---")
+        for vid, rota in enumerate(rotas):
+            print(f"Veículo {vid} fará pedidos: {rota}")
+
+        # Simula fluxo de rede para gerar alocação
+        flow = build_flow_network(pedidos, veiculos)
+        max_flow = flow.multi_max_flow()
+        allocations = get_allocations(flow, len(pedidos), len(veiculos))
+
+        gerar_relatorio(pedidos, veiculos, allocations, demandas_simuladas)
+
 if __name__ == "__main__":
     main()
