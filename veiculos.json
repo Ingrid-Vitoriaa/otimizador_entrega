@@ -1,32 +1,32 @@
 [
     {
-        "id": 0,
-        "tipo": "Moto",
-        "capacidade": 122,
-        "disponivel": true
-    },
-    {
         "id": 1,
-        "tipo": "Moto",
-        "capacidade": 115,
-        "disponivel": true
-    },
-    {
-        "id": 2,
-        "tipo": "Van",
+        "tipo": "MOTO",
         "capacidade": 90,
         "disponivel": true
     },
     {
+        "id": 2,
+        "tipo": "VAN",
+        "capacidade": 150,
+        "disponivel": true
+    },
+    {
         "id": 3,
-        "tipo": "Van",
-        "capacidade": 73,
+        "tipo": "CARRO",
+        "capacidade": 110,
         "disponivel": true
     },
     {
         "id": 4,
-        "tipo": "Moto",
-        "capacidade": 142,
+        "tipo": "CARRO_MEDIO",
+        "capacidade": 130,
+        "disponivel": true
+    },
+    {
+        "id": 5,
+        "tipo": "CAMINHAO",
+        "capacidade": 200,
         "disponivel": true
     }
 ]
