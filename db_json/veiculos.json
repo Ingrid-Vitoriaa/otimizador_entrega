@@ -15,7 +15,7 @@
         "id": 3,
         "tipo": "CARRO",
         "capacidade": 110,
-        "disponivel": true
+        "disponivel": false
     },
     {
         "id": 4,

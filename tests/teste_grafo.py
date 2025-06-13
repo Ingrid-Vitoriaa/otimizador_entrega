@@ -4,7 +4,7 @@ from grafos.validador import validar_rede
 from grafos.estrutura_grafo import construir_grafo_integrado
 
 print("📦 Carregando dados da rede...")
-nodos, rotas = carregar_rede("exemplo_rede.json")
+nodos, rotas = carregar_rede("./db_json/exemplo_rede.json")
 
 print("🔍 Validando integridade da rede...")
 erros = validar_rede(nodos, rotas)

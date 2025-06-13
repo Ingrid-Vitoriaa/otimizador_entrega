@@ -4,7 +4,7 @@ from models.veiculo import Veiculo
 from models.pedido import Pedido
 from models.enums import TipoVeiculo, StatusPedido
 
-def carregar_clientes_de_json(caminho="clientes.json"):
+def carregar_clientes_de_json(caminho="./db_json/clientes.json"):
     with open(caminho, "r") as f:
         dados = json.load(f)
         clientes = []
@@ -20,16 +20,16 @@ def carregar_clientes_de_json(caminho="clientes.json"):
         return clientes
 
 
-def salvar_clientes(clientes, caminho="clientes.json"):
+def salvar_clientes(clientes, caminho="./db_json/clientes.json"):
     with open(caminho, "w") as f:
         json.dump([cliente.__dict__ for cliente in clientes], f, indent=4)
 
-def carregar_clientes(caminho="clientes.json"):
+def carregar_clientes(caminho="./db_json/clientes.json"):
     with open(caminho, "r") as f:
         dados = json.load(f)
         return [Cliente(**cliente) for cliente in dados]
 
-def salvar_veiculos(veiculos, caminho="veiculos.json"):
+def salvar_veiculos(veiculos, caminho="./db_json/veiculos.json"):
     with open(caminho, "w") as f:
         json.dump([
             {
@@ -41,7 +41,7 @@ def salvar_veiculos(veiculos, caminho="veiculos.json"):
             for veiculo in veiculos
         ], f, indent=4)
 
-def carregar_veiculos(caminho="veiculos.json"):
+def carregar_veiculos(caminho="./db_json/veiculos.json"):
     with open(caminho, "r") as f:
         dados = json.load(f)
         return [
@@ -55,7 +55,7 @@ def carregar_veiculos(caminho="veiculos.json"):
         ]
 
 
-def salvar_pedidos(pedidos, caminho="pedidos.json"):
+def salvar_pedidos(pedidos, caminho="./db_json/pedidos.json"):
     with open(caminho, "w") as f:
         json.dump([{
             "id": pedido.id,
@@ -65,7 +65,7 @@ def salvar_pedidos(pedidos, caminho="pedidos.json"):
             "status": pedido.status.name
         } for pedido in pedidos], f, indent=4)
 
-def carregar_pedidos(caminho="pedidos.json"):
+def carregar_pedidos(caminho="./db_json/pedidos.json"):
     with open(caminho, "r") as f:
         dados = json.load(f)
         pedidos = []

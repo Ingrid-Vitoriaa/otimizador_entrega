@@ -273,5 +273,5 @@ def main():
     for veic_id, vol in allocations.items():
         print(f"Veículo {veic_id} transportará {vol} unidades")
 if __name__ == "__main__":
-    # atualizar_coordenadas_no_json("clientes.json")  # opcional
+    # atualizar_coordenadas_no_json("./db_json/clientes.json")  # opcional
     main()

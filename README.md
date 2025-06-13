@@ -8,14 +8,17 @@
 - Luiz Fernando (Fase 5)
 ---
 # Como rodar o projeto
-*Teminal:* Rodar o backend
+*Teminal:* Rodar a API
 ```
-uvicorn main_api:app --reload
+uvicorn main_api:app --port 3000 --reload 
+```
+
+# Como rodar o front-end
+entre no diretorio html_test e rode no terminal
 ```
 *Terminal:* Rodar o frontend
 ```
 python -m http.server
 ```
 =======
-# Projeto da faculdade
-link do visualizador: https://github.com/BABABEA-0/Otimizador_de_entregas
+
