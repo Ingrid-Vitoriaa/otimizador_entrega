@@ -10,14 +10,14 @@
 ## Requerimentos
 Antes de fazer qualquer coisa, lembrese de instalar o seus requerimentos
 
-```
+```bash
 # terminal
 pip install -r requiriments.txt
 ```
 
 ## Como rodar o projeto
 *Teminal:* Rodar a API
-```
+```bash
 uvicorn main_api:app --port 3000 --reload 
 ```
 
@@ -25,8 +25,10 @@ uvicorn main_api:app --port 3000 --reload
 entre no diretorio html_test e rode no terminal
 
 *Terminal:* Rodar o frontend
-```
+```bash
 cd html_test/ # local do front
 python -m http.server
 ```
+
+agora entre no http://localhost:8000 e veja a magica acontecer!
 
