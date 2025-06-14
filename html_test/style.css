@@ -1,0 +1,9 @@
+#mapa {
+    height: 600px; 
+    width: 100%;
+}
+body {
+    font-family: sans-serif;
+    padding: 0;
+    margin: 20px;
+}
